@@ -1,0 +1,12 @@
+.env
+*.pkl
+data/asl_dataset/
+data/asl_alphabet_train/
+data/asl_alphabet_test/
+archive/
+*.zip
+__pycache__/
+*.pyc
+.DS_Store
+logs/
+*.npy
