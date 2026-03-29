@@ -11,7 +11,8 @@ Real-time American Sign Language letter recognition with AI-powered word autocom
 - ASL letter classification (A–Z) via RandomForest (~96% accuracy)
 - Debounce system to prevent jitter — hold a sign briefly to confirm
 - Word autocomplete with offline dictionary (500+ words) and optional Gemini API
-- Text-to-speech — letters spoken as signed, full sentence spoken on word confirm
+- **Multi-language translation** — English, Spanish, French, Italian, Greek via Gemini
+- Text-to-speech — sentences spoken in selected language via ElevenLabs
 - Sentence building across confirmed words
 - FREE-WILi hardware display output over USB (optional)
 - Clean overlay UI with hand skeleton, confidence bars, and suggestion panel
@@ -46,6 +47,9 @@ python3 main.py
 | **D** | Delete last letter |
 | **1 / 2 / 3** | Pick autocomplete suggestion |
 | **S** | Speak entire sentence |
+| **F** | Push-to-talk — listen to spoken response |
+| **L** | Cycle language (EN → ES → FR → IT → EL) |
+| **T** | Clear transcript from screen |
 | **J** | Insert letter J |
 | **Z** | Insert letter Z |
 | **C** | Clear all (reset everything) |
@@ -59,6 +63,7 @@ python3 main.py
 | Hand Tracking | MediaPipe Hands |
 | Classification | scikit-learn RandomForest |
 | Autocomplete | Offline dictionary + Gemini API (optional) |
+| Translation | Gemini 2.0 Flash Lite (EN/ES/FR/IT/EL) |
 | Text-to-Speech | macOS `say` command |
 | Display | OpenCV |
 | Hardware Output | FREE-WILi USB display |
@@ -77,7 +82,8 @@ asl-translator/
 │   ├── classifier.py       # ASL letter prediction
 │   ├── letter_buffer.py    # Debounce + word buffering
 │   ├── autocomplete.py     # Offline + Gemini API word suggestions
-│   ├── speaker.py          # Text-to-speech output
+│   ├── translator.py       # Multi-language translation via Gemini
+│   ├── speaker.py          # Text-to-speech output (ElevenLabs + macOS)
 │   └── projector.py        # FREE-WILi hardware interface
 ├── model/
 │   ├── train.py            # Model training script

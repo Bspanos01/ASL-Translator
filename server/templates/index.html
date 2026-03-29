@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0A0A0F">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SignBridge Live</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0A0A0F;color:#F0F0F0;font-family:-apple-system,system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;">
+
+<!-- Header -->
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:50px;background-color:#111118;border-bottom:1px solid #1E1E2E;">
+  <div style="font-size:16px;font-weight:600;letter-spacing:1px;color:#F0F0F0;">SignBridge</div>
+  <div style="display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;background-color:#1E1E2E;font-size:13px;font-weight:500;color:#F0F0F0;">
+    <div id="connDot" style="width:8px;height:8px;border-radius:50%;background-color:#4DDB7A;"></div>
+    <span id="langCode">EN</span>
+  </div>
+</div>
+
+<!-- YOU SIGNED -->
+<div style="padding:16px;background-color:#111118;border-left:3px solid #4DDB7A;flex:1;">
+  <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#4DDB7A;margin-bottom:8px;">YOU SIGNED</div>
+  <div style="font-size:22px;font-weight:300;color:#F0F0F0;line-height:1.4;">
+    <span id="sentence" style="color:#666678;">Start signing...</span>
+    <span id="moodTag" style="display:none;font-size:13px;font-weight:500;padding:2px 8px;border-radius:4px;border:1px solid;margin-left:8px;"></span>
+  </div>
+  <div id="translated" style="display:none;font-size:15px;margin-top:8px;color:#4DDB7A;opacity:0.6;"></div>
+</div>
+
+<!-- THEY SAID -->
+<div style="padding:16px;background-color:#161620;border-left:3px solid #4D9EDB;flex:1;">
+  <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#4D9EDB;margin-bottom:8px;">THEY SAID</div>
+  <div id="saidContent" style="font-size:22px;font-weight:300;color:#666678;line-height:1.4;">Waiting...</div>
+</div>
+
+<!-- SIGNING -->
+<div style="padding:16px;background-color:#0D0D15;flex:1;">
+  <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#666678;margin-bottom:8px;">SIGNING</div>
+  <div style="font-size:32px;font-weight:300;color:#F0F0F0;min-height:44px;">
+    <span id="currentWord"></span><span style="display:inline-block;width:2px;height:32px;background:#F0F0F0;margin-left:2px;animation:blink 1s step-end infinite;vertical-align:middle;"></span>
+  </div>
+  <div id="pills" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"></div>
+</div>
+
+<!-- Footer -->
+<div style="display:flex;align-items:center;justify-content:center;height:40px;color:#666678;font-size:11px;">
+  Live from SignBridge
+</div>
+
+<style>
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+</style>
+
+<script>
+var MOOD_COLORS = {
+  happy: '#4DDB7A',
+  sad: '#4D6EDB',
+  urgent: '#DB4D4D',
+  angry: '#DB7A4D',
+  neutral: '#666678',
+  grateful: '#9B4DDB',
+  confused: '#DBD44D'
+};
+
+var TOKEN = '{{ token }}';
+
+function esc(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function refresh(data) {
+  // Language
+  document.getElementById('langCode').textContent = data.language === 'EL' ? 'GR' : data.language;
+
+  // YOU SIGNED
+  var el = document.getElementById('sentence');
+  var tag = document.getElementById('moodTag');
+  if (data.asl_sentence) {
+    el.textContent = data.asl_sentence;
+    el.style.color = '#F0F0F0';
+    var mc = MOOD_COLORS[data.mood] || MOOD_COLORS.neutral;
+    tag.textContent = '[' + data.mood.toUpperCase() + ']';
+    tag.style.color = mc;
+    tag.style.borderColor = mc;
+    tag.style.display = 'inline';
+  } else {
+    el.textContent = 'Start signing...';
+    el.style.color = '#666678';
+    tag.style.display = 'none';
+  }
+
+  // Translation
+  var tr = document.getElementById('translated');
+  if (data.language !== 'EN' && data.language !== 'EL' && data.translated && data.translated !== data.asl_sentence) {
+    tr.textContent = data.translated;
+    tr.style.display = 'block';
+  } else {
+    tr.style.display = 'none';
+  }
+
+  // THEY SAID
+  var said = document.getElementById('saidContent');
+  if (data.is_listening) {
+    said.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#4D9EDB;"><div style="width:10px;height:10px;border-radius:50%;background:#4D9EDB;animation:pulse 1.2s ease-in-out infinite;"></div>Listening...</div>';
+  } else if (data.transcript) {
+    said.innerHTML = '<span style="color:#F0F0F0;">' + esc(data.transcript) + '</span>';
+  } else {
+    said.innerHTML = '<span style="color:#666678;">Waiting...</span>';
+  }
+
+  // Current word
+  document.getElementById('currentWord').textContent = data.current_word;
+
+  // Pills
+  var p = document.getElementById('pills');
+  p.innerHTML = '';
+  var sugs = data.suggestions || [];
+  for (var i = 0; i < 3; i++) {
+    if (sugs[i]) {
+      var d = document.createElement('div');
+      d.style.cssText = 'padding:8px 14px;background-color:' + (i === 0 ? '#1E1E2E' : '#161620') + ';border-radius:6px;font-size:14px;font-weight:500;color:#F0F0F0;';
+      d.innerHTML = '<span style="color:#666678;margin-right:4px;">[' + (i+1) + ']</span>' + esc(sugs[i]);
+      p.appendChild(d);
+    }
+  }
+}
+
+function poll() {
+  var x = new XMLHttpRequest();
+  x.open('GET', '/state?token=' + TOKEN);
+  x.onload = function() {
+    if (x.status === 200) {
+      try {
+        refresh(JSON.parse(x.responseText));
+        document.getElementById('connDot').style.backgroundColor = '#4DDB7A';
+      } catch(e) {}
+    }
+  };
+  x.onerror = function() {
+    document.getElementById('connDot').style.backgroundColor = '#DB4D4D';
+  };
+  x.send();
+}
+
+setInterval(poll, 500);
+poll();
+</script>
+</body>
+</html>

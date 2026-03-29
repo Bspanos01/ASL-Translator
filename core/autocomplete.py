@@ -151,9 +151,11 @@ def get_suggestions(partial_word, n=3):
             f'Example format: ["HELLO","HELP","HELD"]'
         )
         response = _client.models.generate_content(model=MODEL, contents=prompt)
-        text = response.text.strip()
+        text = response.text.strip()[:500]  # cap response length
         words = json.loads(text)
-        return words[:n]
+        # Validate: only keep short, printable strings
+        safe = [str(w)[:30] for w in words if isinstance(w, str) and len(w) <= 30]
+        return safe[:n]
     except Exception as e:
         print(f"[Autocomplete] API error: {e}")
         return _offline_suggestions(partial_word, n)
@@ -172,7 +174,7 @@ def build_sentence(words):
             f"Respond with only the sentence, nothing else."
         )
         response = _client.models.generate_content(model=MODEL, contents=prompt)
-        return response.text.strip()
+        return response.text.strip()[:200]  # cap length for UI safety
     except Exception as e:
         print(f"[Autocomplete] Sentence error: {e}")
         return " ".join(words)

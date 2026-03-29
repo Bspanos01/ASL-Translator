@@ -35,14 +35,6 @@ class HandTracker:
         pts = pts / scale  # scale invariant
         return pts.flatten().tolist()
 
-    def get_raw_landmarks(self, frame):
-        """Returns raw MediaPipe hand_landmarks object or None."""
-        rgb = frame[:, :, ::-1]
-        results = self.hands.process(rgb)
-        if results.multi_hand_landmarks:
-            return results.multi_hand_landmarks[0]
-        return None
-
     def get_both(self, frame):
         """Returns (normalized_63_floats, raw_mediapipe_landmarks) in one call."""
         rgb = frame[:, :, ::-1]

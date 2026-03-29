@@ -4,30 +4,79 @@ Collect custom ASL landmark data from your webcam.
 Usage:
     python3 data/collect.py
 
-Controls:
-    - Press a letter key (A-Z) to set the current label
-    - Press SPACE to start/stop recording samples for that label
-    - Press Q to quit and save
-
-It captures normalized landmarks at ~30fps while recording,
-then appends them to data/asl_dataset/custom_landmarks.csv
+You pick a class from the menu BEFORE the webcam starts.
+Then SPACE to record, SPACE to pause, N for next class, Q to quit.
 """
 
 import os
 import sys
 import csv
-import time
 
 import cv2
-import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.hand_tracker import HandTracker
 from ui.display import draw_landmarks, apply_mirror_flip
 
+# All available classes (26 letters + ILY)
+LETTERS = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
+ALL_CLASSES = LETTERS + ["ILY"]
+
+
+def pick_class():
+    """Terminal menu to pick a class. Returns class name or None to quit."""
+    print("\n" + "=" * 55)
+    print("          SELECT A CLASS TO COLLECT")
+    print("=" * 55)
+
+    print("\n  LETTERS:")
+    for i, l in enumerate(LETTERS):
+        print(f"    {i + 1:2d}) {l}", end="")
+        if (i + 1) % 9 == 0:
+            print()
+    print()
+
+    print(f"\n    27) ILY  (I Love You)")
+
+    print("\n  Type a number, class name, or 'q' to quit.")
+    print("=" * 55)
+
+    choice = input("\n  > ").strip()
+
+    if choice.lower() == 'q':
+        return None
+
+    # Try as menu number
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(ALL_CLASSES):
+            return ALL_CLASSES[idx]
+    except ValueError:
+        pass
+
+    # Try as class name
+    for cls in ALL_CLASSES:
+        if cls.lower() == choice.lower():
+            return cls
+
+    print(f"  Unknown: '{choice}'")
+    return pick_class()
+
 
 def main():
+    # Pick class first, before webcam
+    current_label = pick_class()
+    if current_label is None:
+        print("Exiting.")
+        return
+
+    print(f"\n  Collecting for: {current_label}")
+    print("  Webcam opening... Controls:")
+    print("    SPACE = start/stop recording")
+    print("    N     = pick a new class (pauses, returns to menu)")
+    print("    Q     = quit and save\n")
+
     tracker = HandTracker(min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
     cap = cv2.VideoCapture(0)
@@ -52,9 +101,8 @@ def main():
             reader = csv.reader(f)
             next(reader)  # skip header
             all_rows = [row for row in reader]
-        print(f"Loaded {len(all_rows)} existing custom samples")
+        print(f"  Loaded {len(all_rows)} existing custom samples")
 
-    current_label = None
     recording = False
     session_count = 0
     label_counts = {}
@@ -64,13 +112,6 @@ def main():
         lbl = row[-1]
         label_counts[lbl] = label_counts.get(lbl, 0) + 1
 
-    print("=== ASL Data Collector ===")
-    print("Press A-Z to select a letter")
-    print("Press 1=del, 2=space, 3=nothing")
-    print("Press SPACE to start/stop recording")
-    print("Press Q to quit and save")
-    print()
-
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -79,22 +120,23 @@ def main():
         frame = apply_mirror_flip(frame)
         norm, raw = tracker.get_both(frame)
 
-        # Draw hand skeleton
         draw_landmarks(frame, raw)
 
         # Status panel
         h, w = frame.shape[:2]
         cv2.rectangle(frame, (0, 0), (w, 50), (20, 20, 20), -1)
 
-        if current_label:
-            count = label_counts.get(current_label, 0)
-            status = "RECORDING" if recording else "PAUSED"
-            color = (0, 0, 255) if recording else (0, 180, 255)
-            cv2.putText(frame, f"Label: {current_label}  |  {status}  |  Samples: {count}  |  Session: {session_count}",
-                        (15, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        else:
-            cv2.putText(frame, "Press a letter key (A-Z) to select label",
-                        (15, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        count = label_counts.get(current_label, 0)
+        status = "RECORDING" if recording else "READY"
+        color = (0, 0, 255) if recording else (0, 180, 255)
+        cv2.putText(frame,
+                    f"Class: {current_label}  |  {status}  |  Total: {count}  |  Session: {session_count}",
+                    (15, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+        # Bottom hint
+        cv2.rectangle(frame, (0, h - 35), (w, h), (20, 20, 20), -1)
+        cv2.putText(frame, "SPACE=record/pause   N=new class   Q=save & quit",
+                    (15, h - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1)
 
         # Hand detected indicator
         if norm is not None:
@@ -103,7 +145,7 @@ def main():
             cv2.circle(frame, (w - 30, 30), 12, (0, 0, 200), -1)
 
         # Record if active
-        if recording and norm is not None and current_label is not None:
+        if recording and norm is not None:
             row = [f"{v:.6f}" for v in norm] + [current_label]
             all_rows.append(row)
             session_count += 1
@@ -114,33 +156,23 @@ def main():
 
         if key == ord('q') or key == ord('Q'):
             break
+
         elif key == 32:  # SPACE
-            if current_label:
-                recording = not recording
-                if recording:
-                    print(f"  Recording '{current_label}'...")
-                else:
-                    print(f"  Paused. Got {session_count} samples this session.")
-        elif key == ord('1'):
-            current_label = "del"
+            recording = not recording
+            if recording:
+                print(f"  Recording '{current_label}'...")
+            else:
+                print(f"  Paused. {session_count} samples this session.")
+
+        elif key in (ord('n'), ord('N')):
             recording = False
+            print(f"  Paused. {session_count} samples this session.")
+            new_label = pick_class()
+            if new_label is None:
+                break
+            current_label = new_label
             session_count = 0
-            print(f"Selected: del")
-        elif key == ord('2'):
-            current_label = "space"
-            recording = False
-            session_count = 0
-            print(f"Selected: space")
-        elif key == ord('3'):
-            current_label = "nothing"
-            recording = False
-            session_count = 0
-            print(f"Selected: nothing")
-        elif ord('a') <= key <= ord('z'):
-            current_label = chr(key).upper()
-            recording = False
-            session_count = 0
-            print(f"Selected: {current_label}")
+            print(f"  Now collecting: {current_label}")
 
     # Save
     cap.release()
@@ -156,7 +188,7 @@ def main():
         print("Label breakdown:")
         for lbl in sorted(label_counts.keys()):
             print(f"  {lbl}: {label_counts[lbl]}")
-        print(f"\nNow retrain: python3 model/train.py")
+        print(f"\nRetrain: python3 model/train.py")
     else:
         print("No samples collected.")
 
