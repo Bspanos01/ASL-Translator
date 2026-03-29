@@ -4,7 +4,7 @@ import numpy as np
 
 class ASLClassifier:
     def __init__(self, model_path="model/asl_model.pkl"):
-        self.labels = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ") + ["ILY", "del", "nothing", "space"]
+        self.labels = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ") + ["ILY", "CONFIRM", "del", "nothing", "space"]
         self.model = None
         self.encoder = None
         self.load_model(model_path)

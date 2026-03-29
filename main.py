@@ -113,6 +113,30 @@ def main():
         letter, confidence = classifier.predict_letter(norm_landmarks)
         top_preds = classifier.get_top_predictions(norm_landmarks, n=3)
 
+        # CONFIRM gesture (thumbs up) — auto-confirm current word
+        if letter == "CONFIRM" and confidence >= MIN_CONFIDENCE:
+            # Don't feed CONFIRM into the letter buffer — handle it directly
+            # Use same debounce logic: count consecutive CONFIRM frames
+            if not hasattr(buffer, '_confirm_count'):
+                buffer._confirm_count = 0
+            buffer._confirm_count += 1
+            if buffer._confirm_count >= DEBOUNCE_FRAMES and buffer.get_word_so_far():
+                word = buffer.confirm_word()
+                if word:
+                    sentence = build_sentence(buffer.words) if buffer.words else word
+                    current_mood = detect_mood(sentence)
+                    current_lang = get_current_language()
+                    translated_sentence = translate(sentence, current_lang)
+                    voice = get_voice_for_language(current_lang)
+                    say_with_mood(translated_sentence, current_mood, voice_override=voice, lang=current_lang)
+                    suggestions = []
+                    last_word_str = ""
+                buffer._confirm_count = 0
+            letter = None  # don't pass to buffer
+        else:
+            if hasattr(buffer, '_confirm_count'):
+                buffer._confirm_count = 0
+
         # Buffer logic
         prev_word = buffer.get_word_so_far()
         buffer.add_letter(letter, confidence)

@@ -21,7 +21,7 @@ from ui.display import draw_landmarks, apply_mirror_flip
 
 # All available classes (26 letters + ILY)
 LETTERS = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
-ALL_CLASSES = LETTERS + ["ILY"]
+ALL_CLASSES = LETTERS + ["ILY", "CONFIRM"]
 
 
 def pick_class():
@@ -37,7 +37,8 @@ def pick_class():
             print()
     print()
 
-    print(f"\n    27) ILY  (I Love You)")
+    print(f"\n    27) ILY      (I Love You)")
+    print(f"    28) CONFIRM  (Thumbs Up — confirms word)")
 
     print("\n  Type a number, class name, or 'q' to quit.")
     print("=" * 55)
