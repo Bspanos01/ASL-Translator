@@ -72,11 +72,13 @@ def draw_letter_overlay(frame, letter, confidence, top_predictions=None):
     cv2.addWeighted(overlay, 0.85, frame, 0.15, 0, frame)
 
     # Large letter
-    cv2.putText(frame, str(letter), (bx + 16, by + 74), FONT, 3.5, TEXT_WHITE, 3)
+    letter_str = str(letter)
+    cv2.putText(frame, letter_str, (bx + 16, by + 74), FONT, 3.5, TEXT_WHITE, 3)
 
-    # Confidence
+    # Confidence — positioned dynamically after the letter
+    letter_size = cv2.getTextSize(letter_str, FONT, 3.5, 3)[0]
     conf = f"{int(confidence * 100)}%"
-    cv2.putText(frame, conf, (bx + 130, by + 60), FONT, 1.0, GREEN, 2)
+    cv2.putText(frame, conf, (bx + 20 + letter_size[0], by + 60), FONT, 1.0, GREEN, 2)
 
     # Alts
     if top_predictions and len(top_predictions) > 1:
